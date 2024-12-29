@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { useState, useCallback } from 'react';
+import { useUpload } from '@create-labs/shared';
 
 import { useUpload } from "../utilities/runtime-helpers";
 
@@ -12,6 +13,44 @@ function MainComponent() {
   const [upload, { loading: uploadLoading }] = useUpload();
 
   const [loading, setLoading] = useState(false);
+  const [fileLoading, setFileLoading] = useState(false);
+  const [urlLoading, setUrlLoading] = useState(false);
+  const handleFileUpload = async (file) => {
+    try {
+      setFileLoading(true);
+      setError("");
+      const { url, error: uploadError } = await upload({ file });
+      if (uploadError) throw new Error(uploadError);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch file content");
+      const text = await response.text();
+      setJsonInput(text);
+    } catch (err) {
+      setError(err.message);
+      setJsonInput("");
+    } finally {
+      setFileLoading(false);
+    }
+  };
+
+  const handleUrlUpload = async (urlValue) => {
+    try {
+      setUrlLoading(true);
+      setError("");
+      const { url, error: uploadError } = await upload({ url: urlValue });
+      if (uploadError) throw new Error(uploadError);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch URL content");
+      const text = await response.text();
+      setJsonInput(text);
+    } catch (err) {
+      setError(err.message);
+      setJsonInput("");
+    } finally {
+      setUrlLoading(false);
+    }
+  };
+  
   const convertToCSV = useCallback(async () => {
     try {
       setLoading(true);
@@ -119,16 +158,19 @@ function MainComponent() {
               <input
                 type="file"
                 accept=".json"
-                onChange={async (e) => {
+                onChange={(e) => {
                   if (e.target.files) {
-                    const { url } = await upload({ file: e.target.files[0] });
-                    const response = await fetch(url);
-                    const text = await response.text();
-                    setJsonInput(text);
+                    handleFileUpload(e.target.files[0]);
                   }
                 }}
                 className="w-full p-2 border rounded-lg font-roboto"
+                disabled={fileLoading}
               />
+              {fileLoading && (
+                <div className="mt-2 text-blue-500 font-roboto">
+                  Loading file...
+                </div>
+              )}
             </div>
           )}
 
@@ -140,14 +182,15 @@ function MainComponent() {
               <input
                 type="url"
                 placeholder="https://example.com/data.json"
-                onChange={async (e) => {
-                  const { url } = await upload({ url: e.target.value });
-                  const response = await fetch(url);
-                  const text = await response.text();
-                  setJsonInput(text);
-                }}
+                onChange={(e) => handleUrlUpload(e.target.value)}
                 className="w-full p-2 border rounded-lg font-roboto"
+                disabled={urlLoading}
               />
+              {urlLoading && (
+                <div className="mt-2 text-blue-500 font-roboto">
+                  Loading URL...
+                </div>
+              )}
             </div>
           )}
 
